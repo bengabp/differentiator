@@ -29,13 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DEFAULT_SETTINGS,
-  GEMINI_MODELS,
-  loadSettings,
-  saveSettings,
-  type Settings,
-} from "@/lib/settings";
+import { DEFAULT_SETTINGS, GEMINI_MODELS, type Settings } from "@/lib/settings";
+import { useSettings } from "@/lib/settings-context";
 
 type TestState =
   | { kind: "idle" }
@@ -48,16 +43,18 @@ export type SettingsFormProps = {
 };
 
 export function SettingsForm({ onSaved }: SettingsFormProps) {
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  const [hydrated, setHydrated] = useState(false);
+  const { settings: persisted, hydrated, replace, reset: resetCtx } =
+    useSettings();
+  const [settings, setSettings] = useState<Settings>(persisted);
   const [show, setShow] = useState(false);
   const [test, setTest] = useState<TestState>({ kind: "idle" });
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
-    setSettings(loadSettings());
-    setHydrated(true);
-  }, []);
+    if (hydrated && !dirty) {
+      setSettings(persisted);
+    }
+  }, [persisted, hydrated, dirty]);
 
   function update<K extends keyof Settings>(key: K, value: Settings[K]) {
     setSettings((s) => ({ ...s, [key]: value }));
@@ -66,7 +63,7 @@ export function SettingsForm({ onSaved }: SettingsFormProps) {
   }
 
   function persist() {
-    saveSettings(settings);
+    replace(settings);
     setDirty(false);
     toast.success("Settings saved");
     onSaved?.();
@@ -74,7 +71,7 @@ export function SettingsForm({ onSaved }: SettingsFormProps) {
 
   function clearAll() {
     setSettings(DEFAULT_SETTINGS);
-    saveSettings(DEFAULT_SETTINGS);
+    resetCtx();
     setDirty(false);
     setTest({ kind: "idle" });
     toast.success("Settings cleared");

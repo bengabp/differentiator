@@ -15,9 +15,25 @@ export type FilePreviewProps = {
   accent?: "main" | "sample";
   file: File | null;
   className?: string;
+  actions?: React.ReactNode;
 };
 
-export function FilePreview({ label, accent = "main", file, className }: FilePreviewProps) {
+const ACCENT_BG: Record<"main" | "sample", string> = {
+  main: "bg-emerald-400",
+  sample: "bg-sky-400",
+};
+const ACCENT_TEXT: Record<"main" | "sample", string> = {
+  main: "text-emerald-300",
+  sample: "text-sky-300",
+};
+
+export function FilePreview({
+  label,
+  accent = "main",
+  file,
+  className,
+  actions,
+}: FilePreviewProps) {
   const [url, setUrl] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -46,20 +62,24 @@ export function FilePreview({ label, accent = "main", file, className }: FilePre
         className
       )}
     >
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-background/60">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-background/60">
+        <span className={cn("size-1.5 rounded-full shrink-0", ACCENT_BG[accent])} />
         <span
           className={cn(
-            "size-1.5 rounded-full",
-            accent === "main" ? "bg-emerald-400" : "bg-sky-400"
+            "text-xs font-medium tracking-wide uppercase shrink-0",
+            ACCENT_TEXT[accent]
           )}
-        />
-        <span className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
+        >
           {label}
         </span>
         {file && (
-          <span className="ml-auto text-xs text-muted-foreground truncate max-w-[60%]">
-            {file.name} · {formatBytes(file.size)}
+          <span className="text-xs text-muted-foreground truncate min-w-0">
+            <span className="text-foreground/80">{file.name}</span>
+            <span className="ml-1.5">· {formatBytes(file.size)}</span>
           </span>
+        )}
+        {actions && (
+          <div className="ml-auto flex items-center gap-1 shrink-0">{actions}</div>
         )}
       </div>
 
@@ -68,7 +88,6 @@ export function FilePreview({ label, accent = "main", file, className }: FilePre
           <div className="flex flex-col items-center gap-2 text-muted-foreground p-8 text-center">
             <FileQuestion className="size-8" />
             <p className="text-sm">No file uploaded yet</p>
-            <p className="text-xs">Add one from the Compare view.</p>
           </div>
         )}
 
@@ -94,7 +113,7 @@ export function FilePreview({ label, accent = "main", file, className }: FilePre
           <iframe
             src={url}
             title={file?.name ?? "PDF preview"}
-            className="size-full min-h-[640px] bg-white"
+            className="size-full min-h-[420px] bg-white"
           />
         )}
 

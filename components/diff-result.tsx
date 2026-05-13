@@ -3,6 +3,32 @@
 import { useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Check, Copy, Download } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const CATEGORY_COLORS: Record<string, string> = {
+  layout: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30",
+  typography: "bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/30",
+  color: "bg-pink-500/15 text-pink-300 border-pink-500/30",
+  text: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
+  image: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  table: "bg-violet-500/15 text-violet-300 border-violet-500/30",
+  chart: "bg-teal-500/15 text-teal-300 border-teal-500/30",
+  icon: "bg-lime-500/15 text-lime-300 border-lime-500/30",
+  logo: "bg-orange-500/15 text-orange-300 border-orange-500/30",
+  spacing: "bg-sky-500/15 text-sky-300 border-sky-500/30",
+  alignment: "bg-blue-500/15 text-blue-300 border-blue-500/30",
+  page: "bg-purple-500/15 text-purple-300 border-purple-500/30",
+  metadata: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
+  other: "bg-stone-500/15 text-stone-300 border-stone-500/30",
+};
+
+function categoryClasses(c?: string) {
+  if (!c) return "bg-secondary text-secondary-foreground border-border";
+  return (
+    CATEGORY_COLORS[c.toLowerCase().trim()] ||
+    "bg-secondary text-secondary-foreground border-border"
+  );
+}
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -106,7 +132,13 @@ export function DiffResult({ text, model, ms }: DiffResultProps) {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-1.5 text-xs">
                         {it.category && (
-                          <Badge variant="secondary" className="text-[10px]">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[10px] border",
+                              categoryClasses(it.category)
+                            )}
+                          >
                             {it.category}
                           </Badge>
                         )}
@@ -118,14 +150,14 @@ export function DiffResult({ text, model, ms }: DiffResultProps) {
                         {it.impact && (
                           <Badge
                             variant="outline"
-                            className={
-                              "text-[10px] " +
-                              (it.impact === "high"
-                                ? "border-red-500/60 text-red-300"
+                            className={cn(
+                              "text-[10px]",
+                              it.impact === "high"
+                                ? "border-rose-500/60 text-rose-300 bg-rose-500/10"
                                 : it.impact === "medium"
-                                ? "border-amber-500/60 text-amber-300"
-                                : "border-emerald-500/60 text-emerald-300")
-                            }
+                                ? "border-amber-500/60 text-amber-300 bg-amber-500/10"
+                                : "border-emerald-500/60 text-emerald-300 bg-emerald-500/10"
+                            )}
                           >
                             {it.impact}
                           </Badge>

@@ -44,48 +44,46 @@ export function FileSlot({
   }
 
   return (
-    <div className="relative">
-      <div className="absolute top-2 right-2 z-10 flex gap-1.5">
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ACCEPT}
-          className="sr-only"
-          onChange={(e) => {
-            const next = e.target.files?.[0] ?? null;
-            if (next) onChange(next);
-            if (inputRef.current) inputRef.current.value = "";
-          }}
-        />
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => inputRef.current?.click()}
-          disabled={disabled}
-          className="h-7 backdrop-blur-md bg-background/70"
-        >
-          <Replace className="size-3.5" />
-          Replace
-        </Button>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="outline"
-          onClick={() => onChange(null)}
-          disabled={disabled}
-          className="backdrop-blur-md bg-background/70"
-          aria-label="Remove file"
-        >
-          <X className="size-3.5" />
-        </Button>
-      </div>
-      <FilePreview
-        label={label}
-        accent={accent}
-        file={file}
-        className={cn(compact && "min-h-[260px]")}
-      />
-    </div>
+    <FilePreview
+      label={label}
+      accent={accent}
+      file={file}
+      className={cn(compact && "min-h-[300px]")}
+      actions={
+        <>
+          <input
+            ref={inputRef}
+            type="file"
+            accept={ACCEPT}
+            className="sr-only"
+            onChange={(e) => {
+              const next = e.target.files?.[0] ?? null;
+              if (next) onChange(next);
+              if (inputRef.current) inputRef.current.value = "";
+            }}
+          />
+          <Button
+            type="button"
+            size="xs"
+            variant="outline"
+            onClick={() => inputRef.current?.click()}
+            disabled={disabled}
+          >
+            <Replace className="size-3" />
+            Replace
+          </Button>
+          <Button
+            type="button"
+            size="icon-xs"
+            variant="ghost"
+            onClick={() => onChange(null)}
+            disabled={disabled}
+            aria-label="Remove file"
+          >
+            <X className="size-3" />
+          </Button>
+        </>
+      }
+    />
   );
 }

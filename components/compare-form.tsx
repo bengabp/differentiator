@@ -32,12 +32,16 @@ import {
 import { FileSlot } from "@/components/file-slot";
 import { DiffResult } from "@/components/diff-result";
 import { Skeleton } from "@/components/ui/skeleton";
+import { GEMINI_MODELS } from "@/lib/settings";
+import { useSettings } from "@/lib/settings-context";
 import {
-  DEFAULT_SETTINGS,
-  GEMINI_MODELS,
-  loadSettings,
-  saveSettings,
-} from "@/lib/settings";
+  DEFAULT_FIELDS,
+  clearPersistedFiles,
+  loadFields,
+  loadPersistedFile,
+  persistFile,
+  saveFields,
+} from "@/lib/workspace-storage";
 
 const STAGES = [
   "Reading files…",
@@ -48,12 +52,45 @@ const STAGES = [
 ];
 
 export function CompareForm() {
-  const [main, setMain] = useState<File | null>(null);
-  const [sample, setSample] = useState<File | null>(null);
+  const [main, setMainState] = useState<File | null>(null);
+  const [sample, setSampleState] = useState<File | null>(null);
   const [focus, setFocus] = useState("");
   const [exclude, setExclude] = useState("");
   const [instructions, setInstructions] = useState("");
   const [showNotes, setShowNotes] = useState(false);
+  const [fieldsHydrated, setFieldsHydrated] = useState(false);
+
+  const setMain = (f: File | null) => {
+    setMainState(f);
+    void persistFile("main", f);
+  };
+  const setSample = (f: File | null) => {
+    setSampleState(f);
+    void persistFile("sample", f);
+  };
+
+  useEffect(() => {
+    const f = loadFields();
+    setFocus(f.focus);
+    setExclude(f.exclude);
+    setInstructions(f.instructions);
+    setShowNotes(f.showNotes || !!f.instructions);
+    setFieldsHydrated(true);
+
+    (async () => {
+      const [persistedMain, persistedSample] = await Promise.all([
+        loadPersistedFile("main"),
+        loadPersistedFile("sample"),
+      ]);
+      if (persistedMain) setMainState(persistedMain);
+      if (persistedSample) setSampleState(persistedSample);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!fieldsHydrated) return;
+    saveFields({ focus, exclude, instructions, showNotes });
+  }, [focus, exclude, instructions, showNotes, fieldsHydrated]);
   const [loading, setLoading] = useState(false);
   const [stage, setStage] = useState(0);
   const [result, setResult] = useState<{
@@ -71,15 +108,7 @@ export function CompareForm() {
   const [retryCountdown, setRetryCountdown] = useState<number | null>(null);
   const retryRef = useRef<number | null>(null);
   const { show: openSettings } = useSettingsDialog();
-
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    const s = loadSettings();
-    setSettings(s);
-    setHydrated(true);
-  }, []);
+  const { settings, hydrated, update: updateSettings } = useSettings();
 
   useEffect(() => {
     if (!loading) return;
@@ -200,6 +229,8 @@ export function CompareForm() {
     setShowNotes(false);
     setResult(null);
     setError(null);
+    void clearPersistedFiles();
+    saveFields(DEFAULT_FIELDS);
   }
 
   function resetResults() {
@@ -392,12 +423,7 @@ export function CompareForm() {
               </Label>
               <Select
                 value={settings.geminiModel}
-                onValueChange={(v) => {
-                  if (!v) return;
-                  const next = { ...settings, geminiModel: v };
-                  setSettings(next);
-                  saveSettings(next);
-                }}
+                onValueChange={(v) => v && updateSettings("geminiModel", v)}
               >
                 <SelectTrigger id="model" className="h-8 w-[200px] text-xs">
                   <SelectValue />
@@ -462,13 +488,13 @@ export function CompareForm() {
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <div className="grid gap-3 md:grid-cols-2">
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] p-3">
                 <Label
                   htmlFor="focus"
                   className="text-xs flex items-center gap-1.5"
                 >
                   <Target className="size-3.5 text-emerald-400" />
-                  Focus on
+                  <span className="text-emerald-200">Focus on</span>
                   <span className="text-muted-foreground font-normal">
                     (optional)
                   </span>
@@ -478,20 +504,20 @@ export function CompareForm() {
                   placeholder={"e.g. Pricing table on page 2.\nLogo placement.\nAny copy that mentions a date or amount."}
                   value={focus}
                   onChange={(e) => setFocus(e.target.value)}
-                  className="min-h-[88px] resize-y text-sm"
+                  className="min-h-[88px] resize-y text-sm bg-background/40 border-emerald-500/20 focus-visible:ring-emerald-500/30"
                   disabled={loading}
                 />
-                <p className="text-[11px] text-muted-foreground leading-snug">
+                <p className="text-[11px] text-emerald-200/60 leading-snug">
                   Areas / aspects the model should pay particular attention to.
                 </p>
               </div>
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1.5 rounded-lg border border-rose-500/20 bg-rose-500/[0.04] p-3">
                 <Label
                   htmlFor="exclude"
                   className="text-xs flex items-center gap-1.5"
                 >
                   <Ban className="size-3.5 text-rose-400" />
-                  Exclude
+                  <span className="text-rose-200">Exclude</span>
                   <span className="text-muted-foreground font-normal">
                     (optional)
                   </span>
@@ -501,10 +527,10 @@ export function CompareForm() {
                   placeholder={"e.g. Footer page numbers.\nWatermarks.\nTimestamps and dates."}
                   value={exclude}
                   onChange={(e) => setExclude(e.target.value)}
-                  className="min-h-[88px] resize-y text-sm"
+                  className="min-h-[88px] resize-y text-sm bg-background/40 border-rose-500/20 focus-visible:ring-rose-500/30"
                   disabled={loading}
                 />
-                <p className="text-[11px] text-muted-foreground leading-snug">
+                <p className="text-[11px] text-rose-200/60 leading-snug">
                   Areas / aspects to ignore, even if they differ.
                 </p>
               </div>
@@ -552,7 +578,57 @@ export function CompareForm() {
                 disabled={loading}
               />
             </div>
-            <div className="lg:col-span-7">
+            <div className="lg:col-span-7 flex flex-col gap-3">
+              <div className="sticky top-16 z-20 flex items-center justify-between gap-2 rounded-lg border border-border bg-background/85 backdrop-blur px-3 py-2">
+                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                  {loading ? (
+                    <>
+                      <Loader2 className="size-3.5 animate-spin" />
+                      <span>Running on </span>
+                    </>
+                  ) : result ? (
+                    <span>Last run on </span>
+                  ) : (
+                    <span>Model </span>
+                  )}
+                  <span className="font-mono text-foreground/80">
+                    {settings.geminiModel}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={resetResults}
+                    disabled={loading}
+                  >
+                    <RotateCw className="size-3.5" />
+                    Clear
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={!canSubmit}
+                    title={
+                      !main || !sample
+                        ? "Both MAIN and SAMPLE files are required"
+                        : !hasKey
+                        ? "Add an API key in Settings"
+                        : retryCountdown && retryCountdown > 0
+                        ? `Wait ${retryCountdown}s before retrying`
+                        : undefined
+                    }
+                  >
+                    {loading ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Play className="size-3.5" />
+                    )}
+                    {loading ? "Comparing…" : "Run again"}
+                  </Button>
+                </div>
+              </div>
               {loadingPane}
               {resultPane}
               {errorPane}
