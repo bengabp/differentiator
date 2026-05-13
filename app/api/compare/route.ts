@@ -106,6 +106,8 @@ export async function POST(req: NextRequest) {
       req.headers.get("x-api-key") ??
       "";
     model = (form.get("model") as string | null) ?? "gemini-2.5-flash";
+    const focus = (form.get("focus") as string | null) ?? "";
+    const exclude = (form.get("exclude") as string | null) ?? "";
     const instructions = (form.get("instructions") as string | null) ?? "";
     const main = form.get("main");
     const sample = form.get("sample");
@@ -120,6 +122,8 @@ export async function POST(req: NextRequest) {
       sampleName: sample instanceof File ? sample.name : null,
       sampleSize: sample instanceof File ? sample.size : null,
       sampleType: sample instanceof File ? sample.type : null,
+      focusLen: focus.length,
+      excludeLen: exclude.length,
       instructionsLen: instructions.length,
     });
 
@@ -171,6 +175,8 @@ export async function POST(req: NextRequest) {
         model,
         main: mainInline,
         sample: sampleInline,
+        focus,
+        exclude,
         extraInstructions: instructions,
         logger: log.child("gemini"),
       })

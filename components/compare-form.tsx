@@ -10,6 +10,8 @@ import {
   Copy,
   Check,
   TimerReset,
+  Target,
+  Ban,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -49,7 +51,10 @@ const STAGES = [
 export function CompareForm() {
   const [main, setMain] = useState<File | null>(null);
   const [sample, setSample] = useState<File | null>(null);
+  const [focus, setFocus] = useState("");
+  const [exclude, setExclude] = useState("");
   const [instructions, setInstructions] = useState("");
+  const [showNotes, setShowNotes] = useState(false);
   const [loading, setLoading] = useState(false);
   const [stage, setStage] = useState(0);
   const [result, setResult] = useState<{
@@ -106,6 +111,8 @@ export function CompareForm() {
       const fd = new FormData();
       fd.set("apiKey", settings.geminiApiKey);
       fd.set("model", settings.geminiModel);
+      fd.set("focus", focus);
+      fd.set("exclude", exclude);
       fd.set("instructions", instructions);
       fd.set("main", main);
       fd.set("sample", sample);
@@ -191,7 +198,10 @@ export function CompareForm() {
   function reset() {
     setMain(null);
     setSample(null);
+    setFocus("");
+    setExclude("");
     setInstructions("");
+    setShowNotes(false);
     setResult(null);
     setError(null);
     setView("compare");
@@ -355,19 +365,73 @@ export function CompareForm() {
               onChange={setSample}
               accent="sample"
             />
-            <div className="md:col-span-2 flex flex-col gap-2">
-              <Label htmlFor="instructions" className="text-xs">
-                Extra instructions{" "}
-                <span className="text-muted-foreground">(optional)</span>
-              </Label>
-              <Textarea
-                id="instructions"
-                placeholder="e.g. Focus on pricing tables. Ignore footer page numbers."
-                value={instructions}
-                onChange={(e) => setInstructions(e.target.value)}
-                className="min-h-[72px] resize-y"
+            <div className="md:col-span-2 grid gap-3 md:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <Label
+                  htmlFor="focus"
+                  className="text-xs flex items-center gap-1.5"
+                >
+                  <Target className="size-3.5 text-emerald-400" />
+                  Focus on
+                  <span className="text-muted-foreground font-normal">
+                    (optional)
+                  </span>
+                </Label>
+                <Textarea
+                  id="focus"
+                  placeholder={"e.g. Pricing table on page 2.\nLogo placement.\nAny copy that mentions a date or amount."}
+                  value={focus}
+                  onChange={(e) => setFocus(e.target.value)}
+                  className="min-h-[88px] resize-y text-sm"
+                  disabled={loading}
+                />
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Areas / aspects the model should pay particular attention to.
+                </p>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label
+                  htmlFor="exclude"
+                  className="text-xs flex items-center gap-1.5"
+                >
+                  <Ban className="size-3.5 text-rose-400" />
+                  Exclude
+                  <span className="text-muted-foreground font-normal">
+                    (optional)
+                  </span>
+                </Label>
+                <Textarea
+                  id="exclude"
+                  placeholder={"e.g. Footer page numbers.\nWatermarks.\nTimestamps and dates."}
+                  value={exclude}
+                  onChange={(e) => setExclude(e.target.value)}
+                  className="min-h-[88px] resize-y text-sm"
+                  disabled={loading}
+                />
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Areas / aspects to ignore, even if they differ.
+                </p>
+              </div>
+            </div>
+            <div className="md:col-span-2 flex flex-col gap-1.5">
+              <button
+                type="button"
+                onClick={() => setShowNotes((s) => !s)}
+                className="self-start text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
                 disabled={loading}
-              />
+              >
+                {showNotes ? "Hide" : "Add"} additional notes
+              </button>
+              {showNotes && (
+                <Textarea
+                  id="instructions"
+                  placeholder="Anything else the model should know — context, prior known differences to confirm, output preferences, etc."
+                  value={instructions}
+                  onChange={(e) => setInstructions(e.target.value)}
+                  className="min-h-[72px] resize-y text-sm"
+                  disabled={loading}
+                />
+              )}
             </div>
           </CardContent>
         </Card>

@@ -97,6 +97,8 @@ export async function runCompare(opts: {
   model: string;
   main: InlineFile;
   sample: InlineFile;
+  focus?: string;
+  exclude?: string;
   extraInstructions?: string;
   logger?: Logger;
 }) {
@@ -111,17 +113,35 @@ export async function runCompare(opts: {
     systemInstruction: COMPARE_SYSTEM,
   });
 
+  const directives: string[] = [];
+  const focus = opts.focus?.trim();
+  const exclude = opts.exclude?.trim();
+  const extra = opts.extraInstructions?.trim();
+  if (focus) {
+    directives.push(
+      `FOCUS — pay particular attention to these areas / aspects:\n${focus}`
+    );
+  }
+  if (exclude) {
+    directives.push(
+      `EXCLUDE — do NOT report differences in these areas / aspects, even if they exist:\n${exclude}`
+    );
+  }
+  if (extra) {
+    directives.push(`OTHER NOTES from the reviewer:\n${extra}`);
+  }
+  const directiveText = directives.length
+    ? `Reviewer directives (apply these strictly):\n\n${directives.join(
+        "\n\n"
+      )}\n\nNow produce the diff report following the required format. If the EXCLUDE directive removes most differences, say so in the Summary.`
+    : "Now produce the diff report following the required format.";
+
   const parts: Part[] = [
     { text: "FILE 1 — MAIN (reference):" },
     { inlineData: { mimeType: opts.main.mimeType, data: opts.main.data } },
     { text: "FILE 2 — SAMPLE (candidate):" },
     { inlineData: { mimeType: opts.sample.mimeType, data: opts.sample.data } },
-    {
-      text:
-        opts.extraInstructions?.trim()
-          ? `Additional reviewer instructions:\n${opts.extraInstructions.trim()}`
-          : "Now produce the diff report following the required format.",
-    },
+    { text: directiveText },
   ];
 
   log?.info("sending to gemini", {
@@ -131,7 +151,9 @@ export async function runCompare(opts: {
     sampleMime: opts.sample.mimeType,
     mainBytes: Math.round((opts.main.data.length * 3) / 4),
     sampleBytes: Math.round((opts.sample.data.length * 3) / 4),
-    extraInstructionsLen: opts.extraInstructions?.length ?? 0,
+    focusLen: focus?.length ?? 0,
+    excludeLen: exclude?.length ?? 0,
+    extraLen: extra?.length ?? 0,
   });
 
   const started = Date.now();
