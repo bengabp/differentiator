@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Loader2, Play, RotateCw, AlertTriangle, Settings as Cog } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Loader2,
+  Play,
+  RotateCw,
+  AlertTriangle,
+  Settings as Cog,
+  Copy,
+  Check,
+  TimerReset,
+} from "lucide-react";
 import { toast } from "sonner";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { useSettingsDialog } from "@/lib/settings-dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -45,7 +53,16 @@ export function CompareForm() {
     ms: number;
     model: string;
   } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{
+    message: string;
+    suggestion?: string;
+    retryAfterSeconds?: number;
+    code?: string;
+  } | null>(null);
+  const [errorCopied, setErrorCopied] = useState(false);
+  const [retryCountdown, setRetryCountdown] = useState<number | null>(null);
+  const retryRef = useRef<number | null>(null);
+  const { show: openSettings } = useSettingsDialog();
 
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [hydrated, setHydrated] = useState(false);
@@ -93,21 +110,74 @@ export function CompareForm() {
       });
       const data = (await res.json()) as
         | { ok: true; text: string; ms: number; model: string }
-        | { error: string };
+        | {
+            error: string;
+            suggestion?: string;
+            retryAfterSeconds?: number;
+            code?: string;
+          };
       if (!res.ok || "error" in data) {
-        const msg = "error" in data ? data.error : "Request failed";
-        setError(msg);
-        toast.error(msg);
+        const errBody =
+          "error" in data
+            ? data
+            : { error: "Request failed" as const };
+        setError({
+          message: errBody.error,
+          suggestion: "suggestion" in errBody ? errBody.suggestion : undefined,
+          retryAfterSeconds:
+            "retryAfterSeconds" in errBody
+              ? errBody.retryAfterSeconds
+              : undefined,
+          code: "code" in errBody ? errBody.code : undefined,
+        });
+        if ("retryAfterSeconds" in errBody && errBody.retryAfterSeconds) {
+          setRetryCountdown(errBody.retryAfterSeconds);
+        }
+        toast.error(errBody.error);
         return;
       }
       setResult({ text: data.text, ms: data.ms, model: data.model });
       toast.success("Comparison complete");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
-      setError(msg);
+      setError({ message: msg });
       toast.error(msg);
     } finally {
       setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (retryCountdown === null) return;
+    if (retryCountdown <= 0) {
+      setRetryCountdown(null);
+      return;
+    }
+    retryRef.current = window.setTimeout(() => {
+      setRetryCountdown((s) => (s === null ? null : s - 1));
+    }, 1000);
+    return () => {
+      if (retryRef.current) window.clearTimeout(retryRef.current);
+    };
+  }, [retryCountdown]);
+
+  async function copyError() {
+    if (!error) return;
+    const parts = [
+      error.message,
+      error.suggestion ? `Suggestion: ${error.suggestion}` : null,
+      error.code ? `Code: ${error.code}` : null,
+      error.retryAfterSeconds
+        ? `Retry after: ${error.retryAfterSeconds}s`
+        : null,
+    ].filter(Boolean) as string[];
+    try {
+      await navigator.clipboard.writeText(parts.join("\n"));
+      setErrorCopied(true);
+      toast.success("Error copied");
+      setTimeout(() => setErrorCopied(false), 1400);
+    } catch {
+      toast.error("Could not copy");
     }
   }
 
@@ -137,26 +207,19 @@ export function CompareForm() {
           <div className="flex-1">
             <div className="font-medium text-amber-200">No API key set</div>
             <div className="text-amber-200/70">
-              Add and test your Gemini API key in{" "}
-              <Link
-                href="/settings"
-                className="underline underline-offset-2 hover:text-amber-100"
-              >
-                Settings
-              </Link>{" "}
-              before running a comparison.
+              Add and test your Gemini API key in Settings before running a
+              comparison.
             </div>
           </div>
-          <Link
-            href="/settings"
-            className={cn(
-              buttonVariants({ variant: "outline", size: "sm" }),
-              "flex items-center gap-1.5"
-            )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={openSettings}
           >
             <Cog className="size-4" />
             Open settings
-          </Link>
+          </Button>
         </div>
       )}
 
@@ -196,6 +259,21 @@ export function CompareForm() {
                       </div>
                     </SelectItem>
                   ))}
+                  {!GEMINI_MODELS.some(
+                    (m) => m.id === settings.geminiModel
+                  ) &&
+                    settings.geminiModel && (
+                      <SelectItem value={settings.geminiModel}>
+                        <div className="flex flex-col">
+                          <span className="font-mono text-xs">
+                            {settings.geminiModel}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            Custom from Settings
+                          </span>
+                        </div>
+                      </SelectItem>
+                    )}
                 </SelectContent>
               </Select>
             </div>
@@ -286,12 +364,70 @@ export function CompareForm() {
           <CardContent className="pt-6">
             <div className="flex items-start gap-3 text-sm">
               <AlertTriangle className="size-4 text-destructive mt-0.5 shrink-0" />
-              <div>
-                <div className="font-medium text-destructive">
-                  Comparison failed
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="font-medium text-destructive">
+                    Comparison failed
+                    {error.code && (
+                      <span className="ml-2 text-[10px] font-mono text-destructive/70 uppercase tracking-wide">
+                        {error.code}
+                      </span>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={copyError}
+                  >
+                    {errorCopied ? (
+                      <Check className="size-3.5" />
+                    ) : (
+                      <Copy className="size-3.5" />
+                    )}
+                    Copy
+                  </Button>
                 </div>
-                <div className="text-muted-foreground mt-0.5 whitespace-pre-wrap break-words">
-                  {error}
+                <div className="text-muted-foreground mt-1 whitespace-pre-wrap break-words">
+                  {error.message}
+                </div>
+                {error.suggestion && (
+                  <div className="mt-2 rounded-md border border-border bg-card/60 px-3 py-2 text-xs text-foreground/80">
+                    {error.suggestion}
+                  </div>
+                )}
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {retryCountdown !== null && retryCountdown > 0 && (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <TimerReset className="size-3.5" />
+                      Retry in {retryCountdown}s
+                    </span>
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={openSettings}
+                  >
+                    <Cog className="size-4" />
+                    Change model
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={(e) => {
+                      if (!main || !sample) return;
+                      submit(e as unknown as React.FormEvent);
+                    }}
+                    disabled={
+                      !main ||
+                      !sample ||
+                      (retryCountdown !== null && retryCountdown > 0)
+                    }
+                  >
+                    <Play className="size-4" />
+                    Try again
+                  </Button>
                 </div>
               </div>
             </div>

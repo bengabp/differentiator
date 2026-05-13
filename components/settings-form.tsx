@@ -40,7 +40,11 @@ type TestState =
   | { kind: "ok"; modelCount: number; models: string[] }
   | { kind: "err"; message: string };
 
-export function SettingsForm() {
+export type SettingsFormProps = {
+  onSaved?: () => void;
+};
+
+export function SettingsForm({ onSaved }: SettingsFormProps) {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [hydrated, setHydrated] = useState(false);
   const [show, setShow] = useState(false);
@@ -62,6 +66,7 @@ export function SettingsForm() {
     saveSettings(settings);
     setDirty(false);
     toast.success("Settings saved");
+    onSaved?.();
   }
 
   function clearAll() {
@@ -114,15 +119,7 @@ export function SettingsForm() {
   }, [settings.geminiApiKey]);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 py-8 flex flex-col gap-6">
-      <div className="flex flex-col gap-1.5">
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">
-          Your API key is stored only in this browser (localStorage) and sent
-          directly to your own backend. We never log it.
-        </p>
-      </div>
-
+    <div className="flex flex-col gap-5">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -130,7 +127,7 @@ export function SettingsForm() {
               <Sparkles className="size-4" />
             </span>
             <div>
-              <h2 className="text-base font-medium">Provider</h2>
+              <h2 className="text-sm font-medium">Provider</h2>
               <p className="text-xs text-muted-foreground">
                 Pick the model used for comparisons.
               </p>
@@ -139,27 +136,65 @@ export function SettingsForm() {
           <Badge variant="secondary">Google Gemini</Badge>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <Label htmlFor="model">Model</Label>
-          <Select
-            value={settings.geminiModel}
-            onValueChange={(v) => v && update("geminiModel", v)}
-          >
-            <SelectTrigger id="model">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {GEMINI_MODELS.map((m) => (
-                <SelectItem key={m.id} value={m.id}>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="model" className="text-xs">
+              Model preset
+            </Label>
+            <Select
+              value={
+                GEMINI_MODELS.some((m) => m.id === settings.geminiModel)
+                  ? settings.geminiModel
+                  : "__custom__"
+              }
+              onValueChange={(v) => {
+                if (!v) return;
+                if (v === "__custom__") return;
+                update("geminiModel", v);
+              }}
+            >
+              <SelectTrigger id="model">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {GEMINI_MODELS.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    <div className="flex flex-col">
+                      <span>{m.label}</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {m.hint}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+                <SelectItem value="__custom__">
                   <div className="flex flex-col">
-                    <span>{m.label}</span>
+                    <span>Custom…</span>
                     <span className="text-[10px] text-muted-foreground">
-                      {m.hint}
+                      Paste any Gemini model ID below
                     </span>
                   </div>
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="model-custom" className="text-xs">
+              Model ID
+            </Label>
+            <Input
+              id="model-custom"
+              placeholder="gemini-3-pro-preview"
+              value={settings.geminiModel}
+              onChange={(e) => update("geminiModel", e.target.value.trim())}
+              className="font-mono text-sm"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Use Test below to list every model your key can call. Paste an
+              ID here to override the preset.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
@@ -170,16 +205,16 @@ export function SettingsForm() {
               <KeyRound className="size-4" />
             </span>
             <div>
-              <h2 className="text-base font-medium">Gemini API key</h2>
+              <h2 className="text-sm font-medium">Gemini API key</h2>
               <p className="text-xs text-muted-foreground">
-                Create one in Google AI Studio.{" "}
+                Get one from{" "}
                 <a
                   className="inline-flex items-center gap-1 underline-offset-2 hover:underline"
                   href="https://aistudio.google.com/app/apikey"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Open AI Studio
+                  Google AI Studio
                   <ExternalLink className="size-3" />
                 </a>
               </p>
@@ -264,11 +299,12 @@ export function SettingsForm() {
       <div className="flex items-center justify-between">
         <Button
           variant="ghost"
+          size="sm"
           onClick={clearAll}
           className="text-muted-foreground hover:text-destructive"
         >
           <Trash2 className="size-4" />
-          Clear all settings
+          Clear all
         </Button>
         <div className="flex items-center gap-2">
           {dirty && (

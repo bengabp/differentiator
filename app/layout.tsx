@@ -4,6 +4,8 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SiteHeader } from "@/components/site-header";
+import { SettingsDialog } from "@/components/settings-dialog";
+import { SettingsDialogProvider } from "@/lib/settings-dialog";
 
 const montserrat = Montserrat({
   variable: "--font-sans",
@@ -36,9 +38,12 @@ export default function RootLayout({
     >
       <body className="min-h-full bg-background text-foreground flex flex-col font-sans">
         <TooltipProvider delay={150}>
-          <SiteHeader />
-          <main className="flex-1 flex flex-col">{children}</main>
-          <Toaster theme="dark" position="bottom-right" richColors />
+          <SettingsDialogProvider>
+            <SiteHeader />
+            <main className="flex-1 flex flex-col">{children}</main>
+            <SettingsDialog />
+            <Toaster theme="dark" position="bottom-right" richColors />
+          </SettingsDialogProvider>
         </TooltipProvider>
       </body>
     </html>

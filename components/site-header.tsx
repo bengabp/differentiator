@@ -1,13 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import { Sparkles, Settings } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { useSettingsDialog } from "@/lib/settings-dialog";
 
 export function SiteHeader() {
-  const linkCls = cn(
-    buttonVariants({ variant: "ghost", size: "sm" }),
-    "flex items-center gap-1.5"
-  );
+  const { show } = useSettingsDialog();
   return (
     <header className="border-b border-border/60 backdrop-blur-sm sticky top-0 z-40 bg-background/80">
       <div className="mx-auto w-full max-w-6xl px-6 h-14 flex items-center justify-between">
@@ -21,13 +20,16 @@ export function SiteHeader() {
           </span>
         </Link>
         <nav className="flex items-center gap-1">
-          <Link href="/" className={linkCls}>
-            Compare
-          </Link>
-          <Link href="/settings" className={linkCls}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={show}
+            className="flex items-center gap-1.5"
+          >
             <Settings className="size-4" />
             Settings
-          </Link>
+          </Button>
         </nav>
       </div>
     </header>
