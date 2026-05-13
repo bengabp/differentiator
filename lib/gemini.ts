@@ -72,6 +72,18 @@ Compare them exhaustively. Report EVERY difference, even tiny ones. Cover:
 
 Output STRICT MARKDOWN with this exact shape:
 
+## Similarity
+One line, this exact format:
+\`NN% — <one-sentence rationale>\`
+Where NN is an integer from 0 to 100. 100 means visually and textually identical; 0 means nothing in common. Calibration:
+- 95–100: identical or near-identical (only rendering noise / anti-aliasing differences)
+- 80–94: minor differences (small text edits, slight color shifts, minor spacing)
+- 60–79: moderate differences (multiple text changes, swapped images, layout tweaks)
+- 30–59: substantial differences (major content/layout changes, but recognizably the same document)
+- 1–29: very different (mostly unrelated)
+- 0: completely different / unrelated documents
+Pick a single specific integer, not a range. If an EXCLUDE directive removes most differences, score as if those differences didn't exist.
+
 ## Summary
 One short paragraph (max 3 sentences) describing how different the SAMPLE is from the MAIN.
 

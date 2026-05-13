@@ -29,6 +29,80 @@ function categoryClasses(c?: string) {
     "bg-secondary text-secondary-foreground border-border"
   );
 }
+
+type SimilarityTier = {
+  label: string;
+  text: string;
+  track: string;
+  bar: string;
+  ring: string;
+};
+
+function similarityTier(score: number): SimilarityTier {
+  if (score >= 95) {
+    return {
+      label: "Near-identical",
+      text: "text-emerald-300",
+      track: "bg-emerald-500/15",
+      bar: "bg-gradient-to-r from-emerald-500 to-teal-400",
+      ring: "ring-emerald-500/30",
+    };
+  }
+  if (score >= 80) {
+    return {
+      label: "Minor differences",
+      text: "text-lime-300",
+      track: "bg-lime-500/15",
+      bar: "bg-gradient-to-r from-lime-500 to-emerald-400",
+      ring: "ring-lime-500/30",
+    };
+  }
+  if (score >= 60) {
+    return {
+      label: "Moderate differences",
+      text: "text-amber-300",
+      track: "bg-amber-500/15",
+      bar: "bg-gradient-to-r from-amber-500 to-lime-400",
+      ring: "ring-amber-500/30",
+    };
+  }
+  if (score >= 30) {
+    return {
+      label: "Substantial differences",
+      text: "text-orange-300",
+      track: "bg-orange-500/15",
+      bar: "bg-gradient-to-r from-orange-500 to-amber-400",
+      ring: "ring-orange-500/30",
+    };
+  }
+  return {
+    label: "Very different",
+    text: "text-rose-300",
+    track: "bg-rose-500/15",
+    bar: "bg-gradient-to-r from-rose-500 to-orange-400",
+    ring: "ring-rose-500/30",
+  };
+}
+
+function parseSimilarity(text: string): { score: number; rationale?: string } | null {
+  const lines = text.split(/\r?\n/);
+  let inSection = false;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (/^#{1,6}\s*similarity\b/i.test(line)) {
+      inSection = true;
+      continue;
+    }
+    if (inSection && /^#{1,6}\s/.test(line)) break;
+    if (!inSection || !line) continue;
+    const m = line.match(/`?\s*(\d{1,3})\s*%\s*(?:[—\-–:|]\s*(.+?))?\s*`?$/);
+    if (m) {
+      const score = Math.min(100, Math.max(0, parseInt(m[1], 10)));
+      return { score, rationale: m[2]?.trim() };
+    }
+  }
+  return null;
+}
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +119,7 @@ export function DiffResult({ text, model, ms }: DiffResultProps) {
   const [copiedAll, setCopiedAll] = useState(false);
 
   const items = useMemo(() => parseDifferences(text), [text]);
+  const similarity = useMemo(() => parseSimilarity(text), [text]);
 
   async function copyText(t: string) {
     try {
@@ -73,6 +148,12 @@ export function DiffResult({ text, model, ms }: DiffResultProps) {
 
   return (
     <div className="flex flex-col gap-4">
+      {similarity && (
+        <SimilarityGauge
+          score={similarity.score}
+          rationale={similarity.rationale}
+        />
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="text-xs">
@@ -200,6 +281,65 @@ export function DiffResult({ text, model, ms }: DiffResultProps) {
           </ScrollArea>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function SimilarityGauge({
+  score,
+  rationale,
+}: {
+  score: number;
+  rationale?: string;
+}) {
+  const tier = similarityTier(score);
+  return (
+    <div
+      className={cn(
+        "relative overflow-hidden rounded-xl border bg-card/40 p-4 ring-1",
+        tier.ring
+      )}
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-baseline gap-2">
+          <span
+            className={cn(
+              "text-3xl font-semibold tracking-tight tabular-nums",
+              tier.text
+            )}
+          >
+            {score}%
+          </span>
+          <span className="text-xs uppercase tracking-wide text-muted-foreground">
+            similarity
+          </span>
+        </div>
+        <span
+          className={cn(
+            "text-xs font-medium px-2 py-1 rounded-md border",
+            tier.text,
+            tier.track
+          )}
+        >
+          {tier.label}
+        </span>
+      </div>
+      <div
+        className={cn(
+          "mt-3 h-2 w-full overflow-hidden rounded-full",
+          tier.track
+        )}
+      >
+        <div
+          className={cn("h-full rounded-full transition-all", tier.bar)}
+          style={{ width: `${Math.max(2, score)}%` }}
+        />
+      </div>
+      {rationale && (
+        <p className="mt-2 text-xs text-muted-foreground leading-snug">
+          {rationale}
+        </p>
+      )}
     </div>
   );
 }
