@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI, type Part } from "@google/generative-ai";
+import type { Logger } from "@/lib/logger";
 
 export type InlineFile = {
   mimeType: string;
@@ -97,9 +98,13 @@ export async function runCompare(opts: {
   main: InlineFile;
   sample: InlineFile;
   extraInstructions?: string;
+  logger?: Logger;
 }) {
+  const log = opts.logger;
   assertAllowed(opts.main.mimeType);
   assertAllowed(opts.sample.mimeType);
+
+  log?.debug("building client", { model: opts.model });
   const client = getClient(opts.apiKey);
   const model = client.getGenerativeModel({
     model: opts.model,
@@ -119,12 +124,42 @@ export async function runCompare(opts: {
     },
   ];
 
-  const result = await model.generateContent({
-    contents: [{ role: "user", parts }],
-    generationConfig: {
-      temperature: 0.2,
-      maxOutputTokens: 8192,
-    },
+  log?.info("sending to gemini", {
+    model: opts.model,
+    parts: parts.length,
+    mainMime: opts.main.mimeType,
+    sampleMime: opts.sample.mimeType,
+    mainBytes: Math.round((opts.main.data.length * 3) / 4),
+    sampleBytes: Math.round((opts.sample.data.length * 3) / 4),
+    extraInstructionsLen: opts.extraInstructions?.length ?? 0,
   });
-  return result.response.text();
+
+  const started = Date.now();
+  try {
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts }],
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 8192,
+      },
+    });
+    const text = result.response.text();
+    const usage = result.response.usageMetadata;
+    log?.info("gemini response received", {
+      ms: Date.now() - started,
+      chars: text.length,
+      finishReason: result.response.candidates?.[0]?.finishReason,
+      promptTokens: usage?.promptTokenCount,
+      candidateTokens: usage?.candidatesTokenCount,
+      totalTokens: usage?.totalTokenCount,
+    });
+    return text;
+  } catch (err) {
+    log?.error("gemini call failed", {
+      ms: Date.now() - started,
+      model: opts.model,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
 }
