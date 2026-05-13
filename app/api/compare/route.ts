@@ -71,6 +71,30 @@ function normalizeError(
     };
   }
 
+  if (/\b404\b|not found|is not supported|unsupported model|does not exist/i.test(message)) {
+    return {
+      status: 404,
+      body: {
+        error: `Model "${model}" wasn't found for your API key.`,
+        code: "model_not_found",
+        suggestion:
+          "This model ID may not exist on Google's API, or your key doesn't have access. Open Settings → Test to list the models your key can actually call, then pick one of those (e.g. gemini-2.5-flash).",
+      },
+    };
+  }
+
+  if (/failed to fetch|networkerror|ENOTFOUND|ECONNREFUSED|ECONNRESET|fetch failed/i.test(message)) {
+    return {
+      status: 502,
+      body: {
+        error: "Couldn't reach Google's API.",
+        code: "network",
+        suggestion:
+          "Check the server can reach generativelanguage.googleapis.com (firewall, proxy, DNS). Server logs include the full request id.",
+      },
+    };
+  }
+
   if (/\b400\b|inline.*data|size|too large/i.test(message)) {
     return {
       status: 400,

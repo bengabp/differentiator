@@ -77,9 +77,9 @@ export function SettingsForm({ onSaved }: SettingsFormProps) {
     toast.success("Settings cleared");
   }
 
-  async function testKey() {
+  async function testKey(opts?: { silent?: boolean }) {
     if (!settings.geminiApiKey) {
-      toast.error("Enter an API key first.");
+      if (!opts?.silent) toast.error("Enter an API key first.");
       return;
     }
     setTest({ kind: "loading" });
@@ -95,7 +95,7 @@ export function SettingsForm({ onSaved }: SettingsFormProps) {
       if (!res.ok || "error" in data) {
         const msg = "error" in data ? data.error : "Failed";
         setTest({ kind: "err", message: msg });
-        toast.error("API key check failed");
+        if (!opts?.silent) toast.error("API key check failed");
         return;
       }
       setTest({
@@ -103,12 +103,25 @@ export function SettingsForm({ onSaved }: SettingsFormProps) {
         modelCount: data.modelCount,
         models: data.models,
       });
-      toast.success(`Key works — ${data.modelCount} models available`);
+      if (!opts?.silent)
+        toast.success(`Key works — ${data.modelCount} models available`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Network error";
       setTest({ kind: "err", message: msg });
-      toast.error(msg);
+      if (!opts?.silent) toast.error(msg);
     }
+  }
+
+  useEffect(() => {
+    if (hydrated && settings.geminiApiKey && test.kind === "idle") {
+      void testKey({ silent: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, settings.geminiApiKey]);
+
+  function pickAvailableModel(id: string) {
+    setSettings((s) => ({ ...s, geminiModel: id }));
+    setDirty(true);
   }
 
   const maskedHint = useMemo(() => {
@@ -280,7 +293,7 @@ export function SettingsForm({ onSaved }: SettingsFormProps) {
             <Button
               type="button"
               variant="outline"
-              onClick={testKey}
+              onClick={() => testKey()}
               disabled={test.kind === "loading" || !settings.geminiApiKey}
             >
               {test.kind === "loading" ? (
@@ -296,14 +309,45 @@ export function SettingsForm({ onSaved }: SettingsFormProps) {
 
           {test.kind === "ok" && (
             <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs">
-              <div className="font-medium text-emerald-300">
-                Connected. {test.modelCount} models available.
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-medium text-emerald-300">
+                  Connected · {test.modelCount} models available
+                </div>
+                <button
+                  type="button"
+                  onClick={() => testKey()}
+                  className="text-[10px] text-emerald-200/70 hover:text-emerald-100 underline-offset-2 hover:underline"
+                >
+                  Refresh
+                </button>
               </div>
               {test.models.length > 0 && (
-                <div className="mt-1 text-emerald-200/70 font-mono break-words">
-                  {test.models.slice(0, 8).join(", ")}
-                  {test.models.length > 8 ? "…" : ""}
-                </div>
+                <>
+                  <p className="mt-2 text-emerald-200/70">
+                    Click any model to use it (no need to type):
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {test.models.map((m) => {
+                      const active = m === settings.geminiModel;
+                      return (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => pickAvailableModel(m)}
+                          className={
+                            "font-mono text-[10px] px-2 py-0.5 rounded border transition-colors " +
+                            (active
+                              ? "border-emerald-400/80 bg-emerald-500/20 text-emerald-100"
+                              : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200/80 hover:border-emerald-400/60 hover:bg-emerald-500/20")
+                          }
+                          title={active ? "Currently selected" : `Use ${m}`}
+                        >
+                          {m}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </div>
           )}
