@@ -155,12 +155,15 @@ export function SettingsForm({ onSaved }: SettingsFormProps) {
               <SelectTrigger id="model">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent
+                alignItemWithTrigger={false}
+                className="min-w-[320px] max-w-[420px]"
+              >
                 {GEMINI_MODELS.map((m) => (
                   <SelectItem key={m.id} value={m.id}>
-                    <div className="flex flex-col">
-                      <span>{m.label}</span>
-                      <span className="text-[10px] text-muted-foreground">
+                    <div className="flex flex-col min-w-0">
+                      <span className="truncate">{m.label}</span>
+                      <span className="text-[10px] text-muted-foreground whitespace-normal leading-snug">
                         {m.hint}
                       </span>
                     </div>
