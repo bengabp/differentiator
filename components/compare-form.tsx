@@ -22,7 +22,10 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -319,32 +322,56 @@ export function CompareForm() {
                 <SelectContent
                   alignItemWithTrigger={false}
                   align="end"
-                  className="min-w-[320px] max-w-[420px]"
+                  className="min-w-[340px] max-w-[440px]"
                 >
-                  {GEMINI_MODELS.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      <div className="flex flex-col min-w-0">
-                        <span className="truncate">{m.label}</span>
-                        <span className="text-[10px] text-muted-foreground whitespace-normal leading-snug">
-                          {m.hint}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectLabel>Gemini · multimodal</SelectLabel>
+                    {GEMINI_MODELS.filter((m) => m.family === "gemini").map(
+                      (m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate">{m.label}</span>
+                            <span className="text-[10px] text-muted-foreground whitespace-normal leading-snug">
+                              {m.hint}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      )
+                    )}
+                  </SelectGroup>
+                  <SelectSeparator />
+                  <SelectGroup>
+                    <SelectLabel>Gemma · open weights</SelectLabel>
+                    {GEMINI_MODELS.filter((m) => m.family === "gemma").map(
+                      (m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate">{m.label}</span>
+                            <span className="text-[10px] text-muted-foreground whitespace-normal leading-snug">
+                              {m.hint}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      )
+                    )}
+                  </SelectGroup>
                   {!GEMINI_MODELS.some(
                     (m) => m.id === settings.geminiModel
                   ) &&
                     settings.geminiModel && (
-                      <SelectItem value={settings.geminiModel}>
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-mono text-xs truncate">
-                            {settings.geminiModel}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            Custom from Settings
-                          </span>
-                        </div>
-                      </SelectItem>
+                      <>
+                        <SelectSeparator />
+                        <SelectItem value={settings.geminiModel}>
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-mono text-xs truncate">
+                              {settings.geminiModel}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              Custom from Settings
+                            </span>
+                          </div>
+                        </SelectItem>
+                      </>
                     )}
                 </SelectContent>
               </Select>

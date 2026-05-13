@@ -21,17 +21,17 @@ export async function POST(req: NextRequest) {
       keyHint: `${apiKey.slice(0, 4)}…${apiKey.slice(-4)}`,
     });
     const models = await log.step("list models", () => listModels(apiKey));
-    const geminiNames = models
+    const names = models
       .map((m) => m.name.replace(/^models\//, ""))
-      .filter((n) => n.startsWith("gemini"));
+      .filter((n) => /^(gemini|gemma)/i.test(n));
     log.info("key works", {
       total: models.length,
-      geminiCount: geminiNames.length,
+      generativeCount: names.length,
     });
     return Response.json({
       ok: true,
       modelCount: models.length,
-      models: geminiNames,
+      models: names,
       requestId: log.id,
     });
   } catch (err) {

@@ -22,7 +22,10 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -157,23 +160,45 @@ export function SettingsForm({ onSaved }: SettingsFormProps) {
               </SelectTrigger>
               <SelectContent
                 alignItemWithTrigger={false}
-                className="min-w-[320px] max-w-[420px]"
+                className="min-w-[340px] max-w-[440px]"
               >
-                {GEMINI_MODELS.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    <div className="flex flex-col min-w-0">
-                      <span className="truncate">{m.label}</span>
-                      <span className="text-[10px] text-muted-foreground whitespace-normal leading-snug">
-                        {m.hint}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  <SelectLabel>Gemini · multimodal</SelectLabel>
+                  {GEMINI_MODELS.filter((m) => m.family === "gemini").map(
+                    (m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        <div className="flex flex-col min-w-0">
+                          <span className="truncate">{m.label}</span>
+                          <span className="text-[10px] text-muted-foreground whitespace-normal leading-snug">
+                            {m.hint}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    )
+                  )}
+                </SelectGroup>
+                <SelectSeparator />
+                <SelectGroup>
+                  <SelectLabel>Gemma · open weights</SelectLabel>
+                  {GEMINI_MODELS.filter((m) => m.family === "gemma").map(
+                    (m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        <div className="flex flex-col min-w-0">
+                          <span className="truncate">{m.label}</span>
+                          <span className="text-[10px] text-muted-foreground whitespace-normal leading-snug">
+                            {m.hint}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    )
+                  )}
+                </SelectGroup>
+                <SelectSeparator />
                 <SelectItem value="__custom__">
                   <div className="flex flex-col">
                     <span>Custom…</span>
                     <span className="text-[10px] text-muted-foreground">
-                      Paste any Gemini model ID below
+                      Paste any model ID (Gemini, Gemma, etc.) below
                     </span>
                   </div>
                 </SelectItem>
